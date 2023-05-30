@@ -78,6 +78,9 @@ export function NewDriver ({ neo4j }, context, data, wire) {
       disabledCategories: data.notificationsDisabledCategories
     }
   }
+  if ('maxHomeDatabaseDelayMs' in data) {
+    config.maxHomeDatabaseDelay = data.maxHomeDatabaseDelayMs
+  }
   let driver
   try {
     driver = neo4j.driver(uri, parsedAuthToken, config)
@@ -597,6 +600,17 @@ export function GetRoutingTable (_, context, { driverId, database }, wire) {
     wire.writeResponse(responses.RoutingTable({ routingTable }))
   } else {
     wire.writeError('Driver does not support routing')
+  }
+}
+
+export function ForceHomeDatabaseResolution (_, context, { driverId }, wire) {
+  const driver = context.getDriver(driverId)
+
+  if (driver) {
+    driver.forceHomeDbResolution()
+    wire.writeResponse(responses.Driver({ id: driverId }))
+  } else {
+    wire.writeError('Driver not found!')
   }
 }
 

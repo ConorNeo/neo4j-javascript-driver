@@ -17,13 +17,19 @@
  * limitations under the License.
  */
 
+const DEFAULT_KEY = -1
+
 export default class HomeDBCache {
   constructor ({ maxHomeDatabaseDelay }) {
+    this._disabled = maxHomeDatabaseDelay === 0
     this._maxHomeDatabaseDelay = maxHomeDatabaseDelay || 5000
     this._cache = new Map()
   }
 
   set ({ impersonatedUser, auth, databaseName }) {
+    if (this._disabled) {
+      return null
+    }
     if (databaseName == null) {
       return null
     }
@@ -32,7 +38,7 @@ export default class HomeDBCache {
       let key = impersonatedUser || auth
 
       if (key == null) {
-        key = 'null' // This is for when auth is turned off basically
+        key = DEFAULT_KEY // This is for when auth is turned off basically
       }
 
       this._cache.set(key, { databaseName: databaseName, insertTime: Date.now() })
@@ -40,9 +46,12 @@ export default class HomeDBCache {
   }
 
   get ({ impersonatedUser, auth }) {
+    if (this._disabled) {
+      return null
+    }
     let key = impersonatedUser || auth
     if (key == null) {
-      key = 'null' // This is for when auth is turned off basically
+      key = DEFAULT_KEY // This is for when auth is turned off basically
     }
 
     const dbAndCreatedTime = this._cache.get(key)
