@@ -33,7 +33,8 @@ export {
   ExpirationBasedAuthTokenProviderCompleted,
   FakeTimeInstall,
   FakeTimeTick,
-  FakeTimeUninstall
+  FakeTimeUninstall,
+  ForceHomeDatabaseResolution
 } from './request-handlers.js'
 
 export function NewSession ({ neo4j }, context, data, wire) {
