@@ -142,11 +142,7 @@ export default class RoutingConnectionProvider extends PooledConnectionProvider 
     let name
     let address
 
-    if (database == null) {
-      database = this._homeDbCache.get({ impersonatedUser, auth })
-    }
-
-    const context = { database: database || DEFAULT_DB_NAME }
+    const context = this._createContext({ database, auth, impersonatedUser, onDatabaseNameResolved })
 
     const databaseSpecificErrorHandler = new ConnectionErrorHandler(
       SESSION_EXPIRED,
@@ -164,7 +160,9 @@ export default class RoutingConnectionProvider extends PooledConnectionProvider 
       auth,
       onDatabaseNameResolved: (databaseName) => {
         context.database = context.database || databaseName
-        this._homeDbCache.set({ impersonatedUser, auth, databaseName })
+        if (context.homeDatabaseResolution) {
+          this._homeDbCache.set({ impersonatedUser, auth, databaseName })
+        }
         if (onDatabaseNameResolved) {
           onDatabaseNameResolved(databaseName)
         }
@@ -286,13 +284,16 @@ export default class RoutingConnectionProvider extends PooledConnectionProvider 
     return this._verifyAuthentication({
       auth,
       getAddress: async () => {
-        const context = { database: database || DEFAULT_DB_NAME }
+        const context = this._createContext({ database, auth })
 
         const routingTable = await this._freshRoutingTable({
           accessMode,
           database: context.database,
           auth,
           onDatabaseNameResolved: (databaseName) => {
+            if (context.homeDatabaseResolution) {
+              this._homeDbCache.set({ auth, databaseName })
+            }
             context.database = context.database || databaseName
           }
         })
@@ -312,13 +313,16 @@ export default class RoutingConnectionProvider extends PooledConnectionProvider 
   }
 
   async verifyConnectivityAndGetServerInfo ({ database, accessMode }) {
-    const context = { database: database || DEFAULT_DB_NAME }
+    const context = this._createContext({ database })
 
     const routingTable = await this._freshRoutingTable({
       accessMode,
       database: context.database,
       onDatabaseNameResolved: (databaseName) => {
         context.database = context.database || databaseName
+        if (context.homeDatabaseResolution) {
+          this._homeDbCache.set({ databaseName })
+        }
       }
     })
 
@@ -673,6 +677,22 @@ export default class RoutingConnectionProvider extends PooledConnectionProvider 
     onDatabaseNameResolved(newRoutingTable.database)
 
     this._log.info(`Updated routing table ${newRoutingTable}`)
+  }
+
+  _createContext ({ database, auth, impersonatedUser, onDatabaseNameResolved }) {
+    const inputDatabase = database || DEFAULT_DB_NAME
+    return {
+      database: inputDatabase || this._resolveDatabaseNameFromCache({ impersonatedUser, auth, onDatabaseNameResolved }),
+      homeDatabaseResolution: inputDatabase === DEFAULT_DB_NAME
+    }
+  }
+
+  _resolveDatabaseNameFromCache ({ impersonatedUser, auth, onDatabaseNameResolved }) {
+    const database = this._homeDbCache.get({ impersonatedUser, auth })
+    if (database != null && onDatabaseNameResolved != null) {
+      onDatabaseNameResolved(database)
+    }
+    return database
   }
 
   static _forgetRouter (routingTable, routersArray, routerIndex) {

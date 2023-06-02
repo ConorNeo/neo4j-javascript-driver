@@ -2745,38 +2745,7 @@ describe.each([
       expect(pool.has(server1)).toBeTruthy()
     })
 
-    it.each(usersDataSet)('should call onDatabaseNameResolved with the resolved db acquiring home db [user=%s] then do not call it after calling the cache instead', async (user) => {
-      const pool = newPool()
-      const connectionProvider = newRoutingConnectionProvider(
-        [],
-        pool,
-        {
-          null: {
-            'server-non-existing-seed-router:7687': newRoutingTableWithUser({
-              database: null,
-              routers: [server1, server2, server3],
-              readers: [server1, server2],
-              writers: [server3],
-              user,
-              routingTableDatabase: 'homedb'
-            })
-          }
-        }
-      )
-      const onDatabaseNameResolved = jest.fn()
-
-      // Acquire connection once to set up the cache
-      await connectionProvider.acquireConnection({ accessMode: READ, impersonatedUser: user, onDatabaseNameResolved })
-      expect(onDatabaseNameResolved).toHaveBeenCalledWith('homedb')
-
-      const onDatabaseNameResolvedUnCalled = jest.fn()
-
-      // Acquire connection again and that should hit the cache meaning onDatabaseNameResoloved will not be hit as it is retrieved from the cache
-      await connectionProvider.acquireConnection({ accessMode: READ, impersonatedUser: user, onDatabaseNameResolved: onDatabaseNameResolvedUnCalled })
-      expect(onDatabaseNameResolvedUnCalled).not.toHaveBeenCalled()
-    })
-
-    it.each(usersDataSet)('should call onDatabaseNameResolved twice after clearing the home db cache [user=%s]', async (user) => {
+    it.each(usersDataSet)('should call onDatabaseNameResolved always after resolve the database (independent if it comes from cached or server) [user=%s]', async (user) => {
       const pool = newPool()
       const connectionProvider = newRoutingConnectionProvider(
         [],
@@ -2800,18 +2769,16 @@ describe.each([
       await connectionProvider.acquireConnection({ accessMode: READ, impersonatedUser: user, onDatabaseNameResolved: onDatabaseNameResolved })
       expect(onDatabaseNameResolved).toHaveBeenCalledWith('homedb')
 
-      const onDatabaseNameResolvedUnCalled = jest.fn()
-
-      // Acquire connection again and that should hit the cache meaning onDatabaseNameResoloved will not be hit as it is retrieved from the cache
-      await connectionProvider.acquireConnection({ accessMode: READ, impersonatedUser: user, onDatabaseNameResolved: onDatabaseNameResolvedUnCalled })
-      expect(onDatabaseNameResolvedUnCalled).not.toHaveBeenCalled()
+      // Acquire connection again and that should hit the cache meaning onDatabaseNameResolved should be hit with cache information
+      // since the session needs to have this information for next transactions
+      await connectionProvider.acquireConnection({ accessMode: READ, impersonatedUser: user, onDatabaseNameResolved: onDatabaseNameResolved })
+      expect(onDatabaseNameResolved).toBeCalledTimes(2)
 
       connectionProvider.forceHomeDbResolution()
 
-      const onDatabaseNameResolved2 = jest.fn()
       // Acquire connection again and that should not hit the cache meaning onDatabaseNameResolved will be hit again as the cache was removed
-      await connectionProvider.acquireConnection({ accessMode: READ, impersonatedUser: user, onDatabaseNameResolved: onDatabaseNameResolved2 })
-      expect(onDatabaseNameResolved2).toHaveBeenCalledWith('homedb')
+      await connectionProvider.acquireConnection({ accessMode: READ, impersonatedUser: user, onDatabaseNameResolved: onDatabaseNameResolved })
+      expect(onDatabaseNameResolved).toBeCalledTimes(3)
     })
 
     it.each(usersDataSet)('should call onDatabaseNameResolved with the resolved db acquiring named db [user=%s]', async (user) => {
