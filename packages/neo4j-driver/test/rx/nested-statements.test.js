@@ -18,19 +18,11 @@
  */
 
 import { Notification, throwError } from 'rxjs'
-import {
-  mergeMap,
-  materialize,
-  toArray,
-  map,
-  bufferCount,
-  catchError,
-  concatWith
-} from 'rxjs/operators'
+import { bufferCount, catchError, concatWith, map, materialize, mergeMap, toArray } from 'rxjs/operators'
 import neo4j from '../../src'
 // eslint-disable-next-line no-unused-vars
-import RxSession from '../../src/session-rx'
 import sharedNeo4j from '../internal/shared-neo4j'
+import { Neo4jTestContainer } from '../internal/node/neo4j-test-container'
 
 describe('#integration-rx transaction', () => {
   let driver
@@ -38,10 +30,21 @@ describe('#integration-rx transaction', () => {
   let session
   /** @type {number} */
   let protocolVersion
+  let container
+  let boltUrl
+
+  beforeAll( async () => {
+    container = await Neo4jTestContainer.getInstance()
+    boltUrl = container.getBoltUrl()
+  })
+
+  afterAll(async () => {
+    container.close()
+  })
 
   beforeEach(async () => {
     driver = neo4j.driver(
-      `bolt://${sharedNeo4j.hostname}`,
+      boltUrl,
       sharedNeo4j.authToken
     )
     session = driver.rxSession()

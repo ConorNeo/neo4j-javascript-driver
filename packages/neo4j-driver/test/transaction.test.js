@@ -19,14 +19,20 @@
 import neo4j from '../src'
 import sharedNeo4j from './internal/shared-neo4j'
 import { READ } from '../src/driver'
+import { Neo4jTestContainer } from './internal/node/neo4j-test-container'
 
 describe('#integration transaction', () => {
   let driver
   let session
+  let boltUrl
+
+  beforeAll( async () => {
+    boltUrl = (await Neo4jTestContainer.getInstance()).getBoltUrl()
+  })
 
   beforeEach(async () => {
     driver = neo4j.driver(
-      `bolt://${sharedNeo4j.hostname}`,
+      boltUrl,
       sharedNeo4j.authToken
     )
     session = driver.session()

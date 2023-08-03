@@ -20,12 +20,21 @@
 import neo4j from '../../src'
 import sharedNeo4j from '../../test/internal/shared-neo4j'
 import { internal } from 'neo4j-driver-core'
+import { createNeo4jTestContainer, Neo4jTestContainer } from './node/neo4j-test-container'
 
 const {
   logger: { Logger }
 } = internal
 
 describe('#unit Logger', () => {
+  let container
+  let boltUrl
+
+  beforeAll( async () => {
+    container = await Neo4jTestContainer.getInstance()
+    boltUrl = container.getBoltUrl()
+  })
+
   it('should create no-op logger when not configured', () => {
     const log = Logger.create({ logging: null })
 
@@ -79,11 +88,19 @@ describe('#unit Logger', () => {
 })
 
 describe('#integration Logger', () => {
+  let container
+  let boltUrl
+
+  beforeAll( async () => {
+    container = await Neo4jTestContainer.getInstance()
+    boltUrl = container.getBoltUrl()
+  })
+
   it('should log when logger configured in the driver', async () => {
     const logged = []
     const config = memorizingLoggerConfig(logged)
     const driver = neo4j.driver(
-      `bolt://${sharedNeo4j.hostname}`,
+      boltUrl,
       sharedNeo4j.authToken,
       config
     )
@@ -116,7 +133,7 @@ describe('#integration Logger', () => {
     console.log = message => logged.push(message)
 
     const driver = neo4j.driver(
-      `bolt://${sharedNeo4j.hostname}`,
+      boltUrl,
       sharedNeo4j.authToken,
       {
         logging: neo4j.logging.console('debug')
@@ -153,7 +170,7 @@ describe('#integration Logger', () => {
     console.log = message => logged.push(message)
 
     const driver = neo4j.driver(
-      `bolt://${sharedNeo4j.hostname}`,
+      boltUrl,
       sharedNeo4j.authToken,
       {
         logging: neo4j.logging.console()

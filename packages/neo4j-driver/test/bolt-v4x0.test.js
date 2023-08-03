@@ -19,15 +19,25 @@
 
 import neo4j from '../src'
 import sharedNeo4j from './internal/shared-neo4j'
+import { Neo4jTestContainer } from './internal/node/neo4j-test-container'
 
 describe('#integration Bolt V4.0 API', () => {
   let driver
   let session
   let protocolVersion
+  let container
+  let boltUrl
+
+  jasmine.DEFAULT_TIMEOUT_INTERVAL = 10000;
+
+  beforeAll( async () => {
+    container = await Neo4jTestContainer.getInstance()
+    boltUrl = container.getBoltUrl()
+  })
 
   beforeEach(async () => {
     driver = neo4j.driver(
-      `bolt://${sharedNeo4j.hostname}`,
+      boltUrl,
       sharedNeo4j.authToken
     )
     session = driver.session()

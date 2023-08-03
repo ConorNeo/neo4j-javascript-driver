@@ -19,14 +19,23 @@
 
 import neo4j from '../src'
 import sharedNeo4j from './internal/shared-neo4j'
+import { createNeo4jTestContainer, Neo4jTestContainer } from './internal/node/neo4j-test-container'
 
 describe('#integration result summary', () => {
+  let container
+  let boltUrl
+
+  beforeAll( async () => {
+    container = await Neo4jTestContainer.getInstance()
+    boltUrl = container.getBoltUrl()
+  })
+
   describe('default driver', () => {
     let driver, session
 
     beforeEach(done => {
       driver = neo4j.driver(
-        `bolt://${sharedNeo4j.hostname}`,
+        boltUrl,
         sharedNeo4j.authToken
       )
       session = driver.session()
@@ -64,7 +73,7 @@ describe('#integration result summary', () => {
 
     beforeEach(done => {
       driver = neo4j.driver(
-        `bolt://${sharedNeo4j.hostname}`,
+        boltUrl,
         sharedNeo4j.authToken,
         {
           disableLosslessIntegers: true

@@ -21,12 +21,23 @@ import Connection from '../../../bolt-connection/lib/connection/connection'
 import { BoltProtocol } from '../../../bolt-connection/lib/bolt'
 import ConnectionErrorHandler from '../../../bolt-connection/lib/connection/connection-error-handler'
 import { internal } from 'neo4j-driver-core'
+import { Neo4jTestContainer } from './node/neo4j-test-container'
 
 const {
   serverAddress: { ServerAddress: BoltAddress }
 } = internal
 
+let container
+let boltUrl
+let httpUrl
+
 describe('#unit DelegateConnection', () => {
+  beforeAll( async () => {
+    container = await Neo4jTestContainer.getInstance()
+    boltUrl = container.getBoltUrl()
+    httpUrl = container.getHttpUrl()
+  })
+
   it('should delegate get id', () => {
     const delegate = new Connection(null)
     const spy = spyOnProperty(delegate, 'id', 'get').and.returnValue(5)

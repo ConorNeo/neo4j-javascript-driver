@@ -41,6 +41,7 @@ const JasmineReporter = require('jasmine-spec-reporter').SpecReporter
 const karma = require('karma')
 const log = require('fancy-log')
 const JasmineExec = require('jasmine')
+const { Neo4jTestContainer } = require('./test/internal/node/neo4j-test-container')
 
 /**
  * Useful to investigate resource leaks in tests. Enable to see active sockets and file handles after the 'test' task.
@@ -290,7 +291,9 @@ function runKarma (browser, cb) {
 }
 
 function runJasmineTests (filterString) {
-  return new Promise((resolve, reject) => {
+  //perhaps we can start the container here
+  return new Promise(async (resolve, reject) => {
+    await Neo4jTestContainer.getInstance(); // eagerly load container
     const jasmine = new JasmineExec()
     jasmine.loadConfigFile('./spec/support/jasmine.json')
     jasmine.loadHelpers()

@@ -19,59 +19,61 @@
 
 import neo4j from '../src'
 import sharedNeo4j from './internal/shared-neo4j'
+import { Neo4jTestContainer } from './internal/node/neo4j-test-container'
 
-describe('#integration null value', () => {
-  it('should support null', testValue(null))
+describe('#integration null value', async () => {
+  it('should support null', await testValue(null))
 })
 
-describe('#integration floating point values', () => {
-  it('should support float 1.0 ', testValue(1))
-  it('should support float 0.0 ', testValue(0.0))
-  it('should support pretty big float ', testValue(3.4028235e38)) // Max 32-bit
-  it('should support really big float ', testValue(1.7976931348623157e308)) // Max 64-bit
-  it('should support pretty small float ', testValue(1.4e-45)) // Min 32-bit
-  it('should support really small float ', testValue(4.9e-324)) // Min 64-bit
+describe('#integration floating point values', async () => {
+  it('should support float 1.0 ', await testValue(1))
+  it('should support float 0.0 ', await testValue(0.0))
+  it('should support pretty big float ', await testValue(3.4028235e38)) // Max 32-bit
+  it('should support really big float ', await testValue(1.7976931348623157e308)) // Max 64-bit
+  it('should support pretty small float ', await testValue(1.4e-45)) // Min 32-bit
+  it('should support really small float ', await testValue(4.9e-324)) // Min 64-bit
 })
 
-describe('#integration integer values', () => {
+describe('#integration integer values', async () => {
   it(
     'should support integer larger than JS Numbers can model',
-    testValue(neo4j.int('0x7fffffffffffffff'))
+    await testValue(neo4j.int('0x7fffffffffffffff'))
   )
   it(
     'should support integer smaller than JS Numbers can model',
-    testValue(neo4j.int('0x8000000000000000'))
+    await testValue(neo4j.int('0x8000000000000000'))
   )
 })
 
-describe('#integration boolean values', () => {
-  it('should support true ', testValue(true))
+describe('#integration boolean values', async () => {
+  it('should support true ', await testValue(true))
 })
 
-describe('#integration string values', () => {
-  it('should support simple string ', testValue('abcdefghijklmnopqrstuvwxyz'))
+describe('#integration string values', async () => {
+  it('should support simple string ', await testValue('abcdefghijklmnopqrstuvwxyz'))
 })
 
-describe('#integration list values', () => {
-  it('should support empty lists ', testValue([]))
-  it('should support sparse lists ', testValue([undefined, 4], [null, 4]))
-  it('should support list lists ', testValue([[], [1, 2, 3]]))
-  it('should support map lists ', testValue([{}, { a: 12 }]))
+describe('#integration list values', async () => {
+  it('should support empty lists ', await testValue([]))
+  it('should support sparse lists ', await testValue([undefined, 4], [null, 4]))
+  it('should support list lists ', await testValue([[], [1, 2, 3]]))
+  it('should support map lists ', await testValue([{}, { a: 12 }]))
 })
 
-describe('#integration map values', () => {
-  it('should support empty maps ', testValue({}))
+describe('#integration map values', async () => {
+  it('should support empty maps ', await testValue({}))
   it(
     'should support basic maps ',
-    testValue({ a: 1, b: {}, c: [], d: { e: 1 } })
+    await testValue({ a: 1, b: {}, c: [], d: { e: 1 } })
   )
 })
 
 describe('#integration node values', () => {
-  it('should support returning nodes ', done => {
+  it('should support returning nodes ', async done => {
+    const boltUrl = (await Neo4jTestContainer.getInstance()).getBoltUrl()
     // Given
     const driver = neo4j.driver(
-      `bolt://${sharedNeo4j.hostname}`,
+      boltUrl,
       sharedNeo4j.authToken
     )
     const session = driver.session()
@@ -92,10 +94,12 @@ describe('#integration node values', () => {
 })
 
 describe('#integration relationship values', () => {
-  it('should support returning relationships', done => {
+  it('should support returning relationships', async done => {
+    const boltUrl = (await Neo4jTestContainer.getInstance()).getBoltUrl()
+
     // Given
     const driver = neo4j.driver(
-      `bolt://${sharedNeo4j.hostname}`,
+      boltUrl,
       sharedNeo4j.authToken
     )
     const session = driver.session()
@@ -116,10 +120,16 @@ describe('#integration relationship values', () => {
 })
 
 describe('#integration path values', () => {
+  let container
+
+  beforeAll( async () => {
+    container = await Neo4jTestContainer.getInstance()
+  })
+
   it('should support returning paths', done => {
     // Given
     const driver = neo4j.driver(
-      `bolt://${sharedNeo4j.hostname}`,
+      container.getBoltUrl(),
       sharedNeo4j.authToken
     )
     const session = driver.session()
@@ -155,29 +165,32 @@ describe('#integration path values', () => {
 })
 
 describe('#integration byte arrays', () => {
-  it('should support returning empty byte array if server supports byte arrays', done => {
-    testValue(new Int8Array(0))(done)
+
+  it('should support returning empty byte array if server supports byte arrays', async done => {
+    (await testValue(new Int8Array(0)))(done)
   }, 60000)
 
-  it('should support returning empty byte array if server supports byte arrays', done => {
-    testValues([new Int8Array(0)])(done)
+  it('should support returning empty byte array if server supports byte arrays', async done => {
+    (await testValues([new Int8Array(0)]))(done)
   }, 60000)
 
-  it('should support returning short byte arrays if server supports byte arrays', done => {
-    testValues(randomByteArrays(100, 1, 255))(done)
+  it('should support returning short byte arrays if server supports byte arrays', async done => {
+    (await testValues(randomByteArrays(100, 1, 255)))(done)
   }, 60000)
 
-  it('should support returning medium byte arrays if server supports byte arrays', done => {
-    testValues(randomByteArrays(50, 256, 65535))(done)
+  it('should support returning medium byte arrays if server supports byte arrays', async done => {
+    (await testValues(randomByteArrays(50, 256, 65535)))(done)
   }, 60000)
 
-  it('should support returning long byte arrays if server supports byte arrays', done => {
-    testValues(randomByteArrays(10, 65536, 2 * 65536))(done)
+  it('should support returning long byte arrays if server supports byte arrays', async done => {
+    (await testValues(randomByteArrays(10, 65536, 2 * 65536)))(done)
   }, 60000)
 
-  it('should fail to return byte array if server does not support byte arrays', done => {
+  it('should fail to return byte array if server does not support byte arrays', async done => {
+    const container = await Neo4jTestContainer.getInstance()
+
     const driver = neo4j.driver(
-      `bolt://${sharedNeo4j.hostname}`,
+      container.getBoltUrl(),
       sharedNeo4j.authToken
     )
     const session = driver.session()
@@ -193,10 +206,12 @@ describe('#integration byte arrays', () => {
   }, 60000)
 })
 
-function testValue (actual, expected) {
+async function testValue (actual, expected) {
+  const container = await Neo4jTestContainer.getInstance()
+
   return done => {
     const driver = neo4j.driver(
-      `bolt://${sharedNeo4j.hostname}`,
+      container.getBoltUrl(),
       sharedNeo4j.authToken
     )
     const queryPromise = runReturnQuery(driver, actual, expected)
@@ -208,10 +223,12 @@ function testValue (actual, expected) {
   }
 }
 
-function testValues (values) {
+async function testValues (values) {
+  const container = await Neo4jTestContainer.getInstance()
+
   return done => {
     const driver = neo4j.driver(
-      `bolt://${sharedNeo4j.hostname}`,
+      container.getBoltUrl(),
       sharedNeo4j.authToken
     )
     const queriesPromise = values.reduce(

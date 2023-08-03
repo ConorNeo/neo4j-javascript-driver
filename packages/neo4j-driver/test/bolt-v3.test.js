@@ -19,6 +19,7 @@
 
 import neo4j from '../src'
 import sharedNeo4j from './internal/shared-neo4j'
+import { Neo4jTestContainer } from './internal/node/neo4j-test-container'
 
 const TX_CONFIG_WITH_METADATA = { metadata: { a: 1, b: 2 } }
 const TX_CONFIG_WITH_TIMEOUT = { timeout: 42 }
@@ -35,9 +36,12 @@ describe('#integration Bolt V3 API', () => {
   let session
   let protocolVersion
 
+  jasmine.DEFAULT_TIMEOUT_INTERVAL = 10000;
+
   beforeEach(async () => {
+    let boltUrl = (await Neo4jTestContainer.getInstance()).getBoltUrl()
     driver = neo4j.driver(
-      `bolt://${sharedNeo4j.hostname}`,
+      boltUrl,
       sharedNeo4j.authToken
     )
     session = driver.session()

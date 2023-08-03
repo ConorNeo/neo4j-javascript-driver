@@ -21,8 +21,11 @@ import neo4j from '../src'
 import { READ, WRITE } from '../src/driver'
 import parallelLimit from 'async/parallelLimit'
 import sharedNeo4j from './internal/shared-neo4j'
+import { Neo4jTestContainer } from './internal/node/neo4j-test-container'
 
 describe('#integration stress tests', () => {
+  jasmine.DEFAULT_TIMEOUT_INTERVAL = 10000;
+
   const TEST_MODES = {
     fastest: {
       commandsCount: 10000,
@@ -46,10 +49,7 @@ describe('#integration stress tests', () => {
     'CREATE (person:Person:Employee {name: $name, salary: $salary}) RETURN person'
 
   const TEST_MODE = modeFromEnvOrDefault('STRESS_TEST_MODE')
-  const DATABASE_URI = fromEnvOrDefault(
-    'STRESS_TEST_DATABASE_URI',
-    `${sharedNeo4j.scheme}://${sharedNeo4j.hostname}:${sharedNeo4j.port}`
-  )
+  let DATABASE_URI
 
   const USERNAME = fromEnvOrDefault(
     'NEO4J_USERNAME',
@@ -72,6 +72,14 @@ describe('#integration stress tests', () => {
 
   let driver
   let protocolVersion
+
+  beforeAll( async () => {
+    let container = await Neo4jTestContainer.getInstance()
+    DATABASE_URI = fromEnvOrDefault(
+      'STRESS_TEST_DATABASE_URI',
+      `${sharedNeo4j.scheme}://${container.getHost()}:${container.getBoltPort()}}`
+    )
+  })
 
   beforeEach(async () => {
     const config = {

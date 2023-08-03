@@ -19,14 +19,21 @@
 import neo4j from '../../src'
 import sharedNeo4j from '../internal/shared-neo4j'
 // eslint-disable-next-line no-unused-vars
-import RxSession from '../../src/session-rx'
 // eslint-disable-next-line no-unused-vars
 import { Notification, Observable } from 'rxjs'
-import { materialize, toArray, map } from 'rxjs/operators'
+import { map, materialize, toArray } from 'rxjs/operators'
 // eslint-disable-next-line no-unused-vars
-import RxTransaction from '../../src/transaction-rx'
+import { Neo4jTestContainer } from '../internal/node/neo4j-test-container'
 
 describe('#integration-rx navigation', () => {
+  let container
+  let boltUrl
+
+  beforeAll( async () => {
+    container = await Neo4jTestContainer.getInstance()
+    boltUrl = container.getBoltUrl()
+  })
+
   describe('session', () => {
     let driver
     /** @type {RxSession} */
@@ -36,7 +43,7 @@ describe('#integration-rx navigation', () => {
 
     beforeEach(async () => {
       driver = neo4j.driver(
-        `bolt://${sharedNeo4j.hostname}`,
+        boltUrl,
         sharedNeo4j.authToken
       )
       session = driver.rxSession()
@@ -199,7 +206,7 @@ describe('#integration-rx navigation', () => {
 
     beforeEach(async () => {
       driver = neo4j.driver(
-        `bolt://${sharedNeo4j.hostname}`,
+        boltUrl,
         sharedNeo4j.authToken
       )
       session = driver.rxSession()

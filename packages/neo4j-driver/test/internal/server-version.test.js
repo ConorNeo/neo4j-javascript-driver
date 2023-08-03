@@ -24,6 +24,7 @@ import {
   VERSION_3_2_0,
   VERSION_IN_DEV
 } from '../../src/internal/server-version'
+import { Neo4jTestContainer } from './node/neo4j-test-container'
 
 describe('#unit ServerVersion', () => {
   it('should construct with correct values', () => {
@@ -152,9 +153,17 @@ describe('#unit ServerVersion', () => {
 })
 
 describe('#integration ServerVersion', () => {
+  let container
+  let boltUrl
+
+  beforeAll( async () => {
+    container = await Neo4jTestContainer.getInstance()
+    boltUrl = container.getBoltUrl()
+  })
+
   it('should fetch version using driver', async () => {
     const driver = neo4j.driver(
-      `bolt://${sharedNeo4j.hostname}`,
+      boltUrl,
       sharedNeo4j.authToken
     )
     const version = await ServerVersion.fromDriver(driver)
@@ -167,7 +176,7 @@ describe('#integration ServerVersion', () => {
 
   it('should fail to fetch version using incorrect driver', async () => {
     const driver = neo4j.driver(
-      `bolt://${sharedNeo4j.hostname}:4242`,
+      `bolt://${container.getHost()}:4242`,
       sharedNeo4j.authToken
     ) // use wrong port
 

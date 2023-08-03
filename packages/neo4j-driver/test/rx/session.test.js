@@ -29,6 +29,7 @@ import {
   Session,
   ConnectionProvider
 } from 'neo4j-driver-core'
+import { createNeo4jTestContainer } from '../internal/node/neo4j-test-container'
 
 const { SERVICE_UNAVAILABLE, SESSION_EXPIRED } = error
 const { bookmarks } = internal
@@ -40,9 +41,17 @@ describe('#integration rx-session', () => {
   /** @type {number} */
   let protocolVersion
 
+  let container
+  let boltUrl
+
+  beforeAll( async () => {
+    container = await createNeo4jTestContainer()
+    boltUrl = container.getBoltUrl()
+  })
+
   beforeEach(async () => {
     driver = neo4j.driver(
-      `bolt://${sharedNeo4j.hostname}`,
+      boltUrl,
       sharedNeo4j.authToken
     )
     session = driver.rxSession()

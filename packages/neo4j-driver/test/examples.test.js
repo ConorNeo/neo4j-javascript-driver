@@ -27,6 +27,7 @@ import {
   toArray
 } from 'rxjs/operators'
 import { Notification } from 'rxjs'
+import { Neo4jTestContainer } from './internal/node/neo4j-test-container'
 
 /**
  * The tests below are examples that get pulled into the Driver Manual using the tags inside the tests.
@@ -45,13 +46,21 @@ describe('#integration examples', () => {
   let consoleOverridePromise
   let consoleOverridePromiseResolve
   let consoleOverridePromiseReject
+  let container
 
   const user = sharedNeo4j.username
   const password = sharedNeo4j.password
-  const uri = `bolt://${sharedNeo4j.hostname}:7687`
+  let uri
 
-  beforeAll(() => {
+  beforeAll(async () => {
+    container = await Neo4jTestContainer.getInstance()
+    uri = container.getBoltUrl()
     driverGlobal = neo4j.driver(uri, sharedNeo4j.authToken)
+  })
+
+  afterAll(async () => {
+    await driverGlobal.close()
+    container.stop()
   })
 
   beforeEach(async () => {
@@ -68,10 +77,6 @@ describe('#integration examples', () => {
       driverGlobal
     )
     edition = await sharedNeo4j.getEdition(driverGlobal)
-  })
-
-  afterAll(async () => {
-    await driverGlobal.close()
   })
 
   // tag::autocommit-transaction[]

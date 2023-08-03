@@ -18,13 +18,11 @@
  */
 
 import DummyChannel from './dummy-channel'
-import {
-  createChannelConnection
-} from '../../../bolt-connection/lib/connection/connection-channel'
+import { createChannelConnection } from '../../../bolt-connection/lib/connection/connection-channel'
 import { Packer } from '../../../bolt-connection/lib/packstream/packstream-v1'
 import { Chunker } from '../../../bolt-connection/lib/channel/chunking'
 import { alloc } from '../../../bolt-connection/lib/channel'
-import { Neo4jError, newError, error, internal } from 'neo4j-driver-core'
+import { error, internal, Neo4jError, newError } from 'neo4j-driver-core'
 import sharedNeo4j from '../internal/shared-neo4j'
 import { ServerVersion } from '../../src/internal/server-version'
 import lolex from 'lolex'
@@ -32,6 +30,7 @@ import ConnectionErrorHandler from '../../../bolt-connection/lib/connection/conn
 import testUtils from '../internal/test-utils'
 import { WRITE } from '../../src/driver'
 import { ResultStreamObserver } from '../../../bolt-connection/lib/bolt'
+import { Neo4jTestContainer } from './node/neo4j-test-container'
 
 const {
   logger: { Logger },
@@ -47,9 +46,20 @@ const SUCCESS_MESSAGE = { signature: 0x70, fields: [{}] }
 const FAILURE_MESSAGE = { signature: 0x7f, fields: [newError('Hello')] }
 const RECORD_MESSAGE = { signature: 0x71, fields: [{ value: 'Hello' }] }
 
-describe('#integration ChannelConnection', () => {
+describe('#integration ChannelConnection',  () => {
   /** @type {Connection} */
   let connection
+  let container
+  let boltUrl
+  let httpUrl
+
+  jasmine.DEFAULT_TIMEOUT_INTERVAL = 10000;
+
+  beforeAll( async () => {
+    container = await Neo4jTestContainer.getInstance()
+    boltUrl = container.getBoltUrl()
+    httpUrl = container.getHttpUrl()
+  })
 
   afterEach(async () => {
     const usedConnection = connection
@@ -57,6 +67,7 @@ describe('#integration ChannelConnection', () => {
     if (usedConnection) {
       await usedConnection.close()
     }
+
   })
 
   it('should have correct creation timestamp', async () => {
@@ -64,7 +75,7 @@ describe('#integration ChannelConnection', () => {
     try {
       clock.setSystemTime(424242)
 
-      connection = await createConnection(`bolt://${sharedNeo4j.hostname}`)
+      connection = await createConnection(boltUrl)
 
       expect(connection.creationTimestamp).toEqual(424242)
     } finally {
@@ -73,7 +84,7 @@ describe('#integration ChannelConnection', () => {
   })
 
   it('should read/write basic messages', done => {
-    createConnection(`bolt://${sharedNeo4j.hostname}`)
+    createConnection(boltUrl)
       .then(connection => {
         connection.protocol().initialize({
           userAgent: 'mydriver/0.0.0',
@@ -89,7 +100,7 @@ describe('#integration ChannelConnection', () => {
   })
 
   it('should retrieve stream', async done => {
-    connection = await createConnection(`bolt://${sharedNeo4j.hostname}`)
+    connection = await createConnection(boltUrl)
 
     const records = []
     const pullAllObserver = {
@@ -123,7 +134,7 @@ describe('#integration ChannelConnection', () => {
   })
 
   it('should provide error message when connecting to http-port', async done => {
-    await createConnection(`bolt://${sharedNeo4j.hostname}:7474`, {
+    await createConnection(httpUrl, {
       encrypted: false
     })
       .then(done.fail.bind(done))
@@ -149,7 +160,7 @@ describe('#integration ChannelConnection', () => {
       'Node 0 already exists with label User and property "email"=[john@doe.com]'
 
     createChannelConnection(
-      ServerAddress.fromUrl('localhost:7687'),
+      ServerAddress.fromUrl(boltUrl),
       {},
       new ConnectionErrorHandler(SERVICE_UNAVAILABLE),
       Logger.noOp(),
@@ -174,7 +185,7 @@ describe('#integration ChannelConnection', () => {
   })
 
   it('should notify when connection initialization completes', async done => {
-    connection = await createConnection(`bolt://${sharedNeo4j.hostname}`)
+    connection = await createConnection(boltUrl)
 
     connection
       .connect('mydriver/0.0.0', 'mydriver/0.0.0 some system info', basicAuthToken())
@@ -186,7 +197,7 @@ describe('#integration ChannelConnection', () => {
   })
 
   it('should notify when connection initialization fails', async done => {
-    connection = await createConnection(`bolt://${sharedNeo4j.hostname}`) // wrong port
+    connection = await createConnection(boltUrl) // wrong port
 
     connection
       .connect('mydriver/0.0.0', 'mydriver/0.0.0 some system info', basicWrongAuthToken())
@@ -198,7 +209,7 @@ describe('#integration ChannelConnection', () => {
   })
 
   it('should have server version after connection initialization completed', async done => {
-    connection = await createConnection(`bolt://${sharedNeo4j.hostname}`)
+    connection = await createConnection(boltUrl)
     connection
       .connect('mydriver/0.0.0', 'mydriver/0.0.0 some system info', basicAuthToken())
       .then(initializedConnection => {
@@ -211,7 +222,7 @@ describe('#integration ChannelConnection', () => {
   })
 
   it('should fail all new observers after failure to connect', async done => {
-    connection = await createConnection(`bolt://${sharedNeo4j.hostname}`)
+    connection = await createConnection(boltUrl)
 
     connection
       .connect('mydriver/0.0.0', 'mydriver/0.0.0 some system info', basicWrongAuthToken())
@@ -271,7 +282,7 @@ describe('#integration ChannelConnection', () => {
   })
 
   it('should reset and flush when SUCCESS received', async done => {
-    connection = await createConnection(`bolt://${sharedNeo4j.hostname}`)
+    connection = await createConnection(boltUrl)
 
     connection
       .connect('my-driver/1.2.3', 'mydriver/0.0.0 some system info', basicAuthToken())
@@ -295,7 +306,7 @@ describe('#integration ChannelConnection', () => {
   })
 
   it('should fail to reset and flush when FAILURE received', async done => {
-    createConnection(`bolt://${sharedNeo4j.hostname}`)
+    createConnection(boltUrl)
       .then(connection => {
         connection.connect('my-driver/1.2.3', 'mydriver/0.0.0 some system info', basicAuthToken()).then(() => {
           connection
@@ -322,7 +333,7 @@ describe('#integration ChannelConnection', () => {
   })
 
   it('should fail to reset and flush when RECORD received', async done => {
-    connection = await createConnection(`bolt://${sharedNeo4j.hostname}`)
+    connection = await createConnection(boltUrl)
 
     connection
       .connect('my-driver/1.2.3', 'mydriver/0.0.0 some system info', basicAuthToken())
@@ -350,7 +361,7 @@ describe('#integration ChannelConnection', () => {
   })
 
   it('should acknowledge failure with RESET when SUCCESS received', async done => {
-    createConnection(`bolt://${sharedNeo4j.hostname}`)
+    createConnection(boltUrl)
       .then(connection => {
         connection
           .connect('my-driver/1.2.3', 'mydriver/0.0.0 some system info', basicAuthToken())
@@ -393,7 +404,7 @@ describe('#integration ChannelConnection', () => {
     )
 
     createChannelConnection(
-      ServerAddress.fromUrl(`bolt://${sharedNeo4j.hostname}`),
+      ServerAddress.fromUrl(boltUrl),
       {},
       errorHandler,
       Logger.noOp()
@@ -416,7 +427,7 @@ describe('#integration ChannelConnection', () => {
 
   it('should send INIT/HELLO and GOODBYE messages', async () => {
     const messages = []
-    connection = await createConnection(`bolt://${sharedNeo4j.hostname}`)
+    connection = await createConnection(boltUrl)
     recordWrittenMessages(connection._protocol, messages)
 
     await connection.connect('mydriver/0.0.0', 'mydriver/0.0.0 some system info', basicAuthToken())
@@ -434,7 +445,7 @@ describe('#integration ChannelConnection', () => {
   })
 
   it('should not prepare broken connection to close', async () => {
-    connection = await createConnection(`bolt://${sharedNeo4j.hostname}`)
+    connection = await createConnection(boltUrl)
 
     await connection.connect('my-connection/9.9.9', 'mydriver/0.0.0 some system info', basicAuthToken())
     expect(connection._protocol).toBeDefined()
@@ -503,6 +514,7 @@ describe('#integration ChannelConnection', () => {
         'TestErrorCode'
       )
     } catch (error) {
+      console.error(error)
       expect(error.code).toEqual('TestErrorCode')
 
       // in some environments non-routable address results in immediate 'connection refused' error and connect
@@ -520,7 +532,7 @@ describe('#integration ChannelConnection', () => {
   }
 
   function testQueueingOfObserversWithBrokenConnection (connectionAction, done) {
-    createConnection(`bolt://${sharedNeo4j.hostname}`)
+    createConnection(boltUrl)
       .then(connection => {
         connection._handleProtocolError(ILLEGAL_MESSAGE)
         expect(connection.isOpen()).toBeFalsy()
@@ -534,9 +546,6 @@ describe('#integration ChannelConnection', () => {
       .catch(done.fail.bind(done))
   }
 
-  /**
-   * @return {Promise<Connection>}
-   */
   function createConnection (
     url,
     config,
@@ -581,4 +590,5 @@ describe('#integration ChannelConnection', () => {
       ).toBe(true)
     })
   }
+
 })

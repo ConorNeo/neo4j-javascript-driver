@@ -31,6 +31,7 @@ import RxSession from '../../src/session-rx'
 import RxTransaction from '../../src/transaction-rx'
 import sharedNeo4j from '../internal/shared-neo4j'
 import { newError } from 'neo4j-driver-core'
+import { Neo4jTestContainer } from '../internal/node/neo4j-test-container'
 
 describe('#integration-rx transaction', () => {
   let driver
@@ -39,9 +40,15 @@ describe('#integration-rx transaction', () => {
   /** @type {number} */
   let protocolVersion
 
+  let boltUrl
+
+  beforeAll( async () => {
+    boltUrl = (await Neo4jTestContainer.getInstance()).getBoltUrl()
+  })
+
   beforeEach(async () => {
     driver = neo4j.driver(
-      `bolt://${sharedNeo4j.hostname}`,
+      boltUrl,
       sharedNeo4j.authToken
     )
     session = driver.rxSession()
